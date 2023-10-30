@@ -9,5 +9,182 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Whereas the durations of day and night as a function of time follow a sinusoid
+function, this is not the case for the timing of the sunrise and sunset because
+of the facts (i) that the orbit of the earth around the sun is an ellipse and
+not a circle and (ii) the rotation axis of the earth is tilted on the orbital
+plan. Here we illustrate all this in a given location.
+
 ## Packages
+
+```{r message = FALSE}
+library(hms)
+library(dplyr)
+library(suncalc)
+library(lubridate)
+library(purrr)
+library(magrittr)
+```
+
+## Parameters:
+
+```{r}
+saigon <- list(lat =  10.802506629026347,
+               lon = 106.73305962858632,
+               tz  = "Asia/Saigon")
+
+oxford <- list(lat =  51.75187551287947,
+               lon =  -1.2561729436820785,
+               tz  = "Europe/London")
+```
+
+## Functions
+
+```{r}
+plot2 <- function(...) plot(..., type = "l", lwd = 2)
+lines2 <- function(...) lines(..., lwd = 2)
+```
+
+
+## Computing the sunrise and sunset times:
+
+A function that computes the times of sunrise and sunset in a given location and
+between 2 dates:
+
+```{r}
+sunriseset <- function(where, from, to, by = 1) {
+  seq.Date(from, to, by) |> 
+    getSunlightTimes(lat = where$lat, lon = where$lon) |>
+    select(date, sunrise, sunset) |> 
+    mutate(across(-date, ~ as_hms(with_tz(.x, where$tz)))) |> 
+    mutate(day_duration = sunset - sunrise) |> 
+    as_tibble()
+}
+```
+
+Let's try it:
+
+```{r}
+from <- ymd(20230101)
+to <- ymd(20241231)
+saigon_val <- sunriseset(saigon, from, to)
+oxford_val <- sunriseset(oxford, from, to)
+```
+
+## Looking at the duration of the day
+
+```{r}
+with(oxford_val, plot2(date, day_duration / 60 / 60, col = 2, xlab = "",
+                       ylab = "day duration (hours)"))
+
+with(saigon_val, lines2(date, day_duration / 60 / 60, col = 3))
+
+abline(v = ymd(20240101))
+abline(h = 12)
+```
+
+
+```{r}
+f <- function(x) map_dfr(c(min, max),
+                         ~ first(filter(x, day_duration == .x(day_duration))))
+
+g <- function(x) x |>
+  pull(day_duration) |>
+  mean() |> 
+  divide_by (60 * 60) |> 
+  as.vector()
+
+(sgn <- f(saigon_val))
+(oxf <- f(oxford_val))
+
+g(sgn)
+g(oxf)
+```
+
+When is it that the durations of the day in Oxford and Saigon are exactly the
+same?
+
+```{r}
+left_join(saigon_val, oxford_val, "date") |> 
+  mutate(diff = abs(day_duration.x - day_duration.y)) |> 
+  arrange(diff)
+```
+
+## Timings of sunrise and sunset
+
+```{r}
+saigon_val |>
+  arrange(sunrise) |> 
+  select(date, sunrise) |> 
+  first()
+
+saigon_val |>
+  arrange(desc(sunrise)) |> 
+  select(date, sunrise) |> 
+  first()
+
+saigon_val |>
+  arrange(sunset) |> 
+  select(date, sunset) |> 
+  first()
+
+saigon_val |>
+  arrange(desc(sunset)) |> 
+  select(date, sunset) |> 
+  first()
+
+oxford_val |>
+  arrange(sunrise) |> 
+  select(date, sunrise) |> 
+  first()
+
+oxford_val |>
+  arrange(desc(sunrise)) |> 
+  select(date, sunrise) |> 
+  first()
+
+oxford_val |>
+  arrange(sunset) |> 
+  select(date, sunset) |> 
+  first()
+
+oxford_val |>
+  arrange(desc(sunset)) |> 
+  select(date, sunset) |> 
+  first()
+```
+
+```{r}
+with(saigon_val, {
+  plot2(date, sunrise / 60 / 60, col = 2, ylim = c(5, 19),
+        ylab = "time of daylight")
+  lines(date, sunset / 60 / 60, col = 4, lwd = 2)
+  lines(date, sunset / 60 / 60 - 1, col = 4, lwd = 2, lty = 2)
+  lines(date, sunrise / 60 / 60 + 1, col = 2, lwd = 2, lty = 2)
+})
+
+abline(v = ymd(20240101))
+
+abline(h = c(7, 8, 17, 18))
+```
+
+An alternative way of representing:
+
+```{r}
+with(saigon_val, {
+  plot2(sunrise / 60 / 60, date, col = 2, xlim = c(5, 19),
+        xlab = "time of daylight")
+  lines(sunset / 60 / 60, date, col = 4, lwd = 2)
+  lines(sunset / 60 / 60 - 1, date, col = 4, lwd = 2, lty = 2)
+  lines(sunrise / 60 / 60 + 1, date, col = 2, lwd = 2, lty = 2)
+})
+
+abline(h = ymd(20240101))
+
+abline(v = c(6, 7, 17, 18))
+```
+
+
+
+
 
