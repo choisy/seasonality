@@ -11,3 +11,68 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Packages
 
+```{r}
+library(purrr)
+library(deSolve)
+library(tibble)
+```
+
+
+## Functions
+
+```{r}
+seq2 <- function(...) seq(..., le = 512)
+plot2 <- function(..., col = 4) plot(..., type = "l", lwd = 2, col = col)
+lines2 <- function(..., col = 4) lines(..., lwd = 2, col = col)
+ode2 <- function(...) as_tibble(as.data.frame(deSolve::ode(...)))
+```
+
+
+## Models
+
+Model 1:
+
+$$
+\frac{dN}{dt} = \frac{1}{(1 + N)^\alpha} b N
+$$
+Model 2:
+
+$$
+\frac{dN}{dt} = \left(1 - \frac{N}{K}\right) b N
+$$
+
+
+```{r}
+xs <- seq2(0, 10)
+plot(NA, xlim = range(xs), ylim = 0:1, xlab = "density", ylab = "per capita rate")
+walk(c(.1, .5, 1, 2, 3), ~ lines2(xs, 1 / (1 + xs)^.x))
+title("model 1")
+```
+
+```{r}
+xs <- seq2(0, 10)
+plot(NA, xlim = range(xs), ylim = 0:1, xlab = "density", ylab = "per capita rate")
+walk(c(1, 3, 5, 8, 10), ~ lines2(xs, (1 - xs / .x)))
+title("model 2")
+```
+
+
+```{r}
+model <- function(N0, b, alpha, times) {
+  ode2(c(N = N0),
+       times,
+       function(time, state, pars) {
+         with(as.list(c(state, pars)), {
+           dN <- b * N / (1 + N) ^ alpha
+           list(dN)
+         })
+       },
+       c(b     = b,
+         alpha = alpha))
+}
+```
+
+```{r}
+with(model(1, 1, 1, seq2(0, 500)), plot2(time, N, ylim = c(0, 1000)))
+```
+
