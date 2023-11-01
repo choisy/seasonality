@@ -172,10 +172,10 @@ An alternative way of representing:
 
 ```{r}
 with(saigon_val, {
-  plot2(sunrise / 60 / 60, date, col = 2, xlim = c(5, 19),
-        xlab = "time of daylight")
-  lines(sunset / 60 / 60, date, col = 4, lwd = 2)
-  lines(sunset / 60 / 60 - 1, date, col = 4, lwd = 2, lty = 2)
+  plot2(sunrise / 60 / 60,     date, col = 2,
+        xlim = c(5, 19), xlab = "time of daylight")
+  lines(sunset  / 60 / 60,     date, col = 4, lwd = 2)
+  lines(sunset  / 60 / 60 - 1, date, col = 4, lwd = 2, lty = 2)
   lines(sunrise / 60 / 60 + 1, date, col = 2, lwd = 2, lty = 2)
 })
 
@@ -184,7 +184,64 @@ abline(h = ymd(20240101))
 abline(v = c(6, 7, 17, 18))
 ```
 
+## Computing contact rate
+
+```{r}
+saigon_val |> 
+  mutate(z = ymd_hms(paste(date, sunrise)),
+         a = z + dhours(),
+         b = ymd_hms(paste(date, "06:00:00")),
+         c = ymd_hms(paste(date, "07:00:00")),
+         d = as_datetime(map2_dbl(a, c, min)),
+         e = as_datetime(map2_dbl(b, z, max)),
+         f = d - e)
+```
 
 
+```{r}
+morning_from <- "05:30:00"
+morning_to   <- "06:30:00"
+evening_from <- "17:30:00"
+evening_to   <- "18:30:00"
+duration <- dhours()
+
+saigon_val |> 
+  mutate(tmp  = ymd_hms(paste(date, sunrise)),
+         mrng = as_datetime(map2_dbl(tmp + duration,
+                                     ymd_hms(paste(date, morning_to)), min)) -
+                as_datetime(map2_dbl(ymd_hms(paste(date, morning_from)), tmp, max)),
+         tmp  = ymd_hms(paste(date, sunset)),
+         evng = as_datetime(map2_dbl(tmp, ymd_hms(paste(date, evening_to)), min)) -
+                as_datetime(map2_dbl(tmp - duration,
+                                     ymd_hms(paste(date, evening_from)), max)),
+         ctct = mrng + evng) |> 
+  select(-tmp) |> 
+  with(plot(date, ctct, type = "l"))
+
+abline(v = ymd(20240101))
+```
+
+```{r}
+morning_from <- "06:00:00"
+morning_to   <- "07:00:00"
+evening_from <- "17:00:00"
+evening_to   <- "18:00:00"
+duration <- dhours()
+
+saigon_val |> 
+  mutate(tmp  = ymd_hms(paste(date, sunrise)),
+         mrng = as_datetime(map2_dbl(tmp + duration,
+                                     ymd_hms(paste(date, morning_to)), min)) -
+                as_datetime(map2_dbl(ymd_hms(paste(date, morning_from)), tmp, max)),
+         tmp  = ymd_hms(paste(date, sunset)),
+         evng = as_datetime(map2_dbl(tmp, ymd_hms(paste(date, evening_to)), min)) -
+                as_datetime(map2_dbl(tmp - duration,
+                                     ymd_hms(paste(date, evening_from)), max)),
+         ctct = mrng + evng) |> 
+  select(-tmp) |> 
+  with(plot(date, ctct, type = "l"))
+
+abline(v = ymd(20240101))
+```
 
 
